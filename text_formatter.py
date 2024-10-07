@@ -239,46 +239,40 @@ def create_html_from_chunks(chunks, file_name):
 
 
 def main():
-    # Set up argument parser to handle input text file.
+    # Set up argument parser to handle input text file or folder.
     parser = argparse.ArgumentParser(
-        description="Process a transcript text file and format it into HTML."
+        description="Process transcript text files and format them into HTML."
     )
     parser.add_argument(
-        "input_file",
+        "input_paths",
         type=str,
-        help="Path to the input text file containing the transcript.",
+        nargs="+",  # Accepts multiple input paths (file or folder)
+        help="Paths to the input text file(s) or folder(s) containing text files.",
     )
 
     # Parse the command-line arguments.
     args = parser.parse_args()
 
-    # Read the content from the specified text file.
-    input_file_path = args.input_file
-    if not os.path.isfile(input_file_path):
-        print(f"Error: The file {input_file_path} does not exist.")
-        return
-
-    with open(input_file_path, "r", encoding="utf-8") as file:
-        transcript_text = file.read()
-
-    # Get the file name without the extension for the HTML title.
-    file_name = os.path.splitext(os.path.basename(input_file_path))[0]
-
-    # Step 1: Chunk the transcript text into manageable segments.
-    chunks = chunk_text(transcript_text, max_characters=1000)
-
-    # Step 2: Create an HTML document from the formatted chunks, including the file name in the title.
-    final_html_content = create_html_from_chunks(chunks, file_name)
-
-    # Use the input file name (without extension) for the output HTML file.
-    output_file_name = file_name + ".html"
-    output_file_path = os.path.join(os.path.dirname(input_file_path), output_file_name)
-
-    # Step 3: Save the formatted HTML content as a new file.
-    with open(output_file_path, "w", encoding="utf-8") as output_file:
-        output_file.write(final_html_content)
-
-    print(f"Transcript successfully formatted and saved as: {output_file_path}")
+    # Iterate over all input paths provided.
+    for input_path in args.input_paths:
+        if os.path.isfile(input_path):
+            # If a single file is provided, process it.
+            print(f"Processing file: {input_path}")
+            process_transcript_file(input_path)
+        elif os.path.isdir(input_path):
+            # If a directory is provided, process all text files in the directory.
+            print(f"Processing directory: {input_path}")
+            text_files = list(Path(input_path).glob("*.txt"))
+            if not text_files:
+                print(f"No text files found in directory: {input_path}")
+                continue
+            for text_file in text_files:
+                print(f"Processing file: {text_file}")
+                process_transcript_file(text_file)
+        else:
+            print(
+                f"Invalid input path: {input_path}. Please provide a valid file or folder path."
+            )
 
 
 # Run the main function if this script is executed directly.
