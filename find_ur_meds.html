@@ -1,0 +1,139 @@
+<div style="position: relative; width: 100%; max-width: 478px;"> <!-- Max width set to 478px -->
+    <!-- Search Icon -->
+    <i class="fa fa-search" style="
+        position: absolute; 
+        left: 20px; 
+        top: 50%; 
+        transform: translateY(-50%); 
+        font-size: 20px; 
+        color: #555;"></i>
+  
+    <!-- Search Input Field -->
+    <input 
+      id="searchInput" 
+      type="text" 
+      placeholder="Search for a medicine you need"
+      style="
+        background-color: #FFF;
+        border: 1px solid rgb(106, 106, 106); /* Default border */
+        border-radius: 8px;
+        box-sizing: border-box;
+        color: rgb(32, 31, 27); /* Text color */
+        height: 56px; /* Matches GoodRx */
+        display: block;
+        outline: none;
+        width: 100%; /* Fills container width up to max-width */
+        padding: 8px 16px 8px 44px; /* Space for icon */
+        font-family: 'GoodRx Bolton', Arial, sans-serif;
+        font-size: 1rem;
+        font-weight: 400;
+        line-height: 1.5;
+        transition: border 250ms ease, box-shadow 250ms ease; /* Smooth transition for the border and shadow */
+        appearance: none;"
+      onfocus="this.style.border='2px solid #1D74DE'; this.style.boxShadow='0 0 4px #1D74DE';" 
+      onblur="this.style.border='1px solid rgb(106, 106, 106)'; this.style.boxShadow='none';"
+      oninput="bubble_fn_search(this.value)"
+    />
+  </div>
+  
+  <script>
+    // Define variables to track the state of the search bar
+    let searchBarActive = false;
+  
+    // Function to activate the search bar
+    function activateSearchBar() {
+      const searchBar = document.getElementById('searchInput');
+      const medicineSearch = document.getElementById('MedicineSearch');
+  
+      searchBarActive = true; // Activate the search bar
+  
+      if (searchBar) {
+        searchBar.focus(); // Focus the search input
+        console.log("Focusing on search bar. Current value:", searchBar.value);
+      } else {
+        console.error("Search bar element not found during activation.");
+      }
+  
+      if (medicineSearch) {
+        medicineSearch.style.display = 'block'; // Show search results
+        console.log("Displaying search results.");
+      } else {
+        console.error("Search results element not found during activation.");
+      }
+    }
+  
+    // Function to reset the search bar
+    function resetSearchBar() {
+      const searchBar = document.getElementById('searchInput');
+      const medicineSearch = document.getElementById('MedicineSearch');
+  
+      searchBarActive = false; // Deactivate the search bar
+  
+      if (searchBar) {
+        searchBar.value = ''; // Clear the input value
+        searchBar.blur(); // Remove focus from the search bar
+        console.log("Search bar reset.");
+      } else {
+        console.error("Search bar element not found during reset.");
+      }
+  
+      if (medicineSearch) {
+        medicineSearch.style.display = 'none'; // Hide search results
+        console.log("Hiding search results.");
+      } else {
+        console.error("Search results element not found during reset.");
+      }
+    }
+  
+    // Add event listener to handle click events
+    document.addEventListener('click', (event) => {
+      const searchInput = document.getElementById('searchInput');
+      const medicineSearch = document.getElementById('MedicineSearch');
+      const searchContainer = document.getElementById('searchContainer');
+      const searchRootContainer = document.getElementById('searchRootContainer');
+  
+      // Define active and inactive search zones
+      const inActiveSearch =
+        searchInput.contains(event.target) || medicineSearch.contains(event.target);
+  
+      const outsideOfActiveSearch =
+        !inActiveSearch &&
+        (searchContainer.contains(event.target) ||
+          searchRootContainer.contains(event.target));
+  
+      // Logic for toggling the search bar
+      if (searchBarActive && inActiveSearch) {
+        console.log("Search bar is active, and click is inside active search.");
+        // Do nothing
+      } else if (!searchBarActive && inActiveSearch) {
+        console.log("Activating search bar.");
+        activateSearchBar();
+      } else if (searchBarActive && outsideOfActiveSearch) {
+        console.log("Resetting search bar due to click outside active area.");
+        resetSearchBar();
+      } else if (!searchBarActive && outsideOfActiveSearch) {
+        console.log("Click is outside active search, and search bar is inactive.");
+        // Do nothing
+      }
+    });
+  
+    // Add event listeners for input focus and blur
+    document.getElementById('searchInput').addEventListener('focus', () => {
+      if (!searchBarActive) {
+        activateSearchBar();
+      }
+    });
+  
+    document.getElementById('searchInput').addEventListener('blur', () => {
+      if (searchBarActive) {
+        resetSearchBar();
+      }
+    });
+  </script>
+  
+  
+  
+  
+  
+    
+  
