@@ -9,6 +9,10 @@ from pathlib import Path
 from groq import Groq
 import os
 from openai import OpenAI
+import whisper
+import subprocess
+from pathlib import Path
+import os
 
 # clean up imports
 # next, we break this multiple GPTs to each do these pieces individually
@@ -37,6 +41,26 @@ def get_groq_client():
         raise ValueError("GROQ_API_KEY is not set in the environment variables")
     client = Groq(api_key=api_key)
     return client
+
+
+def transcribe_mp4_with_openai(mp4_path):
+    """
+    Transcribes an MP4 file directly using the OpenAI Whisper API.
+    """
+    try:
+        with open(mp4_path, "rb") as audio_file:
+            response = client.audio.transcriptions.create(
+                model="whisper-1", file=audio_file, response_format="text"
+            )
+        # Save the transcription as a text file
+        transcript_path = mp4_path.replace(".mp4", ".txt")
+        with open(transcript_path, "w", encoding="utf-8") as file:
+            file.write(response)
+        print(f"Transcription successful! Saved to: {transcript_path}")
+        return transcript_path
+    except Exception as e:
+        print(f"Error during transcription: {e}")
+        return None
 
 
 def chunk_text(text, max_characters=500):
