@@ -9,7 +9,6 @@ from pathlib import Path
 from groq import Groq
 import os
 from openai import OpenAI
-import whisper
 import subprocess
 from pathlib import Path
 import os
@@ -157,13 +156,20 @@ def format_transcript_with_gpt1(chunk):
         # Print the message content to verify extraction
         print("Message content:\n", message_content)
 
-        # Extract 'formatted_text' and 'reasoning' fields using regex
         formatted_text_match = re.search(
-            r'"formatted_text":\s*"(.*?)"', message_content, re.DOTALL
+            r'"formatted\\?_text":\s*"(.*?)"(?:,|\n)', message_content, re.DOTALL
         )
         reasoning_match = re.search(
-            r'"reasoning":\s*"(.*?)"', message_content, re.DOTALL
+            r'"reasoning":\s*"(.*?)"(?:,|\n)', message_content, re.DOTALL
         )
+
+        # # Extract 'formatted_text' and 'reasoning' fields using regex
+        # formatted_text_match = re.search(
+        #     r'"formatted_text":\s*"(.*?)"', message_content, re.DOTALL
+        # )
+        # reasoning_match = re.search(
+        #     r'"reasoning":\s*"(.*?)"', message_content, re.DOTALL
+        # )
 
         # Get the extracted values if the matches are found
         formatted_text = formatted_text_match.group(1) if formatted_text_match else ""
@@ -273,84 +279,95 @@ def create_html_from_chunks(chunks, file_name):
 
 
 def main():
-    # Set up argument parser to handle input text files or folders.
     parser = argparse.ArgumentParser(
-        description="Process transcript text files and format them into HTML."
+        description="Process transcript text and MP4 files and format them into HTML."
     )
     parser.add_argument(
-        "input_paths",
-        type=str,
-        nargs="+",  # Accepts multiple input paths (files or folders)
-        help="Paths to the input text file(s) or folder(s) containing transcript files.",
+        "input_paths", type=str, nargs="+", help="Paths to input text or MP4 files."
     )
 
-    # Parse the command-line arguments.
     args = parser.parse_args()
 
-    # Iterate over all input paths provided.
     for input_path in args.input_paths:
         if os.path.isfile(input_path):
-            print(f"Processing file: {input_path}")
-            # Read the content from the specified text file.
-            with open(input_path, "r", encoding="utf-8") as file:
-                transcript_text = file.read()
-
-            # Get the file name without the extension for the HTML title.
             file_name = os.path.splitext(os.path.basename(input_path))[0]
+            # Check for MP4 input and transcribe before processing
+            if input_path.lower().endswith(".mp4"):
+                print(f"Processing MP4 file: {input_path}")
+                input_path = transcribe_mp4_with_openai(input_path)
 
-            # Step 1: Chunk the transcript text into manageable segments.
-            chunks = chunk_text(transcript_text, max_characters=1000)
+            # Process text files
+            if input_path.lower().endswith(".txt"):
+                print(f"Processing file: {input_path}")
+                with open(input_path, "r", encoding="utf-8") as file:
+                    transcript_text = file.read()
 
-            # Step 2: Create an HTML document from the formatted chunks, including the file name in the title.
-            final_html_content = create_html_from_chunks(chunks, file_name)
+                chunks = chunk_text(transcript_text, max_characters=1000)
+                final_html_content = create_html_from_chunks(chunks, file_name)
 
-            # Use the input file name (without extension) for the output HTML file.
-            output_file_name = file_name + ".html"
-            output_file_path = os.path.join(
-                os.path.dirname(input_path), output_file_name
-            )
+                output_file_name = f"{file_name}.html"
+                output_file_path = os.path.join(
+                    os.path.dirname(input_path), output_file_name
+                )
 
-            # Step 3: Save the formatted HTML content as a new file.
-            with open(output_file_path, "w", encoding="utf-8") as output_file:
-                output_file.write(final_html_content)
+                with open(output_file_path, "w", encoding="utf-8") as output_file:
+                    output_file.write(final_html_content)
 
-            print(f"Transcript successfully formatted and saved as: {output_file_path}")
+                print(
+                    f"Transcript successfully formatted and saved as: {output_file_path}"
+                )
 
         elif os.path.isdir(input_path):
             print(f"Processing directory: {input_path}")
-            # Loop through all text files in the directory
-            text_files = list(Path(input_path).glob("*.txt"))
-            if not text_files:
-                print(f"No text files found in directory: {input_path}")
+            # Modified to handle both .txt and .mp4 files
+            all_files = list(Path(input_path).glob("*.txt")) + list(
+                Path(input_path).glob("*.mp4")
+            )
+            if not all_files:
+                print(f"No supported files found in directory: {input_path}")
             else:
-                for text_file in text_files:
-                    print(f"Processing file: {text_file}")
-                    # Read the content from the specified text file.
-                    with open(text_file, "r", encoding="utf-8") as file:
-                        transcript_text = file.read()
+                for file in all_files:
+                    file_name = Path(file).stem
 
-                    # Get the file name without the extension for the HTML title.
-                    file_name = os.path.splitext(os.path.basename(text_file))[0]
+                    # Handling MP4 files in directory
+                    if file.suffix == ".mp4":
+                        print(f"Processing MP4 file: {file}")
+                        input_path = transcribe_mp4_with_openai(file)
+                        if input_path:
+                            with open(input_path, "r", encoding="utf-8") as f:
+                                transcript_text = f.read()
+                            chunks = chunk_text(transcript_text, max_characters=1000)
+                            final_html_content = create_html_from_chunks(
+                                chunks, file_name
+                            )
+                            output_file_name = f"{file_name}.html"
+                            output_file_path = os.path.join(
+                                file.parent, output_file_name
+                            )
+                            with open(
+                                output_file_path, "w", encoding="utf-8"
+                            ) as output_file:
+                                output_file.write(final_html_content)
+                            print(
+                                f"Transcript successfully formatted and saved as: {output_file_path}"
+                            )
 
-                    # Step 1: Chunk the transcript text into manageable segments.
-                    chunks = chunk_text(transcript_text, max_characters=1000)
-
-                    # Step 2: Create an HTML document from the formatted chunks, including the file name in the title.
-                    final_html_content = create_html_from_chunks(chunks, file_name)
-
-                    # Use the input file name (without extension) for the output HTML file.
-                    output_file_name = file_name + ".html"
-                    output_file_path = os.path.join(
-                        os.path.dirname(text_file), output_file_name
-                    )
-
-                    # Step 3: Save the formatted HTML content as a new file.
-                    with open(output_file_path, "w", encoding="utf-8") as output_file:
-                        output_file.write(final_html_content)
-
-                    print(
-                        f"Transcript successfully formatted and saved as: {output_file_path}"
-                    )
+                    # Handling TXT files in directory
+                    elif file.suffix == ".txt":
+                        print(f"Processing text file: {file}")
+                        with open(file, "r", encoding="utf-8") as f:
+                            transcript_text = f.read()
+                        chunks = chunk_text(transcript_text, max_characters=1000)
+                        final_html_content = create_html_from_chunks(chunks, file_name)
+                        output_file_name = f"{file_name}.html"
+                        output_file_path = os.path.join(file.parent, output_file_name)
+                        with open(
+                            output_file_path, "w", encoding="utf-8"
+                        ) as output_file:
+                            output_file.write(final_html_content)
+                        print(
+                            f"Transcript successfully formatted and saved as: {output_file_path}"
+                        )
 
         else:
             print(
@@ -358,6 +375,5 @@ def main():
             )
 
 
-# Run the main function if this script is executed directly.
 if __name__ == "__main__":
     main()
